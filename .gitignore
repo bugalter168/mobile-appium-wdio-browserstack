@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Secrets — only .env.example is committed
+.env
+.env.local
+
+# The app under test is ~124 MB and is downloaded, not committed
+*.apk
+*.aab
+*.ipa
+*.app
+*.zip
+
+# Reports
+allure-results/
+allure-report/
+.allure/
+
+# Logs
+log/
+logs/
+*.log
+npm-debug.log*
+
+# `uiautomator dump` output, written into the working directory while resolving selectors
+dump.xml
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

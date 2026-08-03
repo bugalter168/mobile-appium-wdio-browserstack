@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+
+    /* `type: module` in package.json + tsx at runtime. "Bundler" resolution lets us
+       write extensionless relative imports (`./base.page`) that tsx resolves natively. */
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+
+    /* Makes `browser`, `driver`, `$`, `describe`, `it` globally typed without importing
+       them. `expect` is imported explicitly from @wdio/globals, per project rules. */
+    "types": ["node", "@wdio/globals/types", "@wdio/mocha-framework"],
+
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* These two turn the "no dead code / no unused imports" hygiene rule into a
+       compiler error instead of a review comment. */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    /* We never emit — tsx transpiles at runtime, tsc is only used as a type checker. */
+    "noEmit": true,
+
+    /* Third-party .d.ts files are outside our control; without this a single upstream
+       type bug would break the "zero tsc errors" requirement for reasons we can't fix. */
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["config/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules"]
+}

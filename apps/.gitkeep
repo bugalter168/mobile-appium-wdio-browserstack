@@ -1,0 +1,2 @@
+# The app under test lives here. The .apk itself is git-ignored — download it with the
+# curl command in the README. This file only keeps the directory present after a clone.
