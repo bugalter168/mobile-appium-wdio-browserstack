@@ -25,7 +25,9 @@ function escapeValue(value: string): string {
 function serialise(entries: Record<string, string | undefined>): string {
   return (
     Object.entries(entries)
-      .filter((entry): entry is [string, string] => entry[1] !== undefined)
+      /* Empty as well as undefined: APP_VERSION is present-but-blank in .env.example,
+         and writing `App.Version=` puts an empty row in the report's Environment widget. */
+      .filter((entry): entry is [string, string] => entry[1] !== undefined && entry[1] !== '')
       .map(([key, value]) => `${key}=${escapeValue(value)}`)
       .join('\n') + '\n'
   )
@@ -42,9 +44,10 @@ export async function writeAllureEnvironment(
 
     const entries: Record<string, string | undefined> = {
       'Execution.Target': run.target,
+      Platform: text(caps.platformName) ?? text(caps['appium:platformName']),
       Device: text(caps.deviceModel) ?? text(caps.deviceName) ?? text(caps['appium:deviceName']),
-      'Android.Version':
-        text(caps.platformVersion) ?? text(caps['appium:platformVersion']),
+      'OS.Version': text(caps.platformVersion) ?? text(caps['appium:platformVersion']),
+      /* Android-only; absent keys are dropped by serialise(), so iOS runs simply omit it. */
       'Android.API.Level': text(caps.deviceApiLevel),
       App: run.app,
       'App.Version': process.env.APP_VERSION,

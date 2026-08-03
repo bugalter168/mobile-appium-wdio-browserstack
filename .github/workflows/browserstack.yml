@@ -49,10 +49,12 @@ jobs:
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-          BROWSERSTACK_APP_ID: ${{ secrets.BROWSERSTACK_APP_ID }}
+          # Repository secret keeps its existing name; only the variable the config
+          # reads is renamed, because BROWSERSTACK_APP_ID is reserved by the SDK.
+          BROWSERSTACK_ANDROID_APP_ID: ${{ secrets.BROWSERSTACK_APP_ID }}
         run: |
           missing=0
-          for name in BROWSERSTACK_USERNAME BROWSERSTACK_ACCESS_KEY BROWSERSTACK_APP_ID; do
+          for name in BROWSERSTACK_USERNAME BROWSERSTACK_ACCESS_KEY BROWSERSTACK_ANDROID_APP_ID; do
             if [ -z "${!name}" ]; then
               echo "::error::$name resolved to an empty string. Check the repository secret name and this workflow's env block."
               missing=1
@@ -64,7 +66,7 @@ jobs:
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-          BROWSERSTACK_APP_ID: ${{ secrets.BROWSERSTACK_APP_ID }}
+          BROWSERSTACK_ANDROID_APP_ID: ${{ secrets.BROWSERSTACK_APP_ID }}
           BROWSERSTACK_BUILD_NAME: Android — GitHub Actions ${{ github.ref_name }}
         run: npm run test:bstack
 

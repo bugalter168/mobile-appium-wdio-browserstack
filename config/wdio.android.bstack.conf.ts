@@ -23,7 +23,17 @@ function optional(name: string, fallback: string): string {
   return value === undefined || value === "" ? fallback : value;
 }
 
-const appId: string = required("BROWSERSTACK_APP_ID");
+const appId: string = required("BROWSERSTACK_ANDROID_APP_ID");
+
+/*
+ * BROWSERSTACK_APP_ID is the BrowserStack SDK's own "app for this run" variable, and it
+ * outranks the `app` service option below: with both set, the SDK logs the option's
+ * value in its received config and then reports "Using app: <the env var>". That is why
+ * this repo's per-platform ids are named BROWSERSTACK_ANDROID_APP_ID and
+ * BROWSERSTACK_IOS_APP_ID — the reserved name is never overloaded to mean one platform.
+ * Pointing it at this config's own app keeps the two in agreement whichever one wins.
+ */
+process.env.BROWSERSTACK_APP_ID = appId;
 
 const device: string = optional("BROWSERSTACK_DEVICE", "Google Pixel 8");
 const osVersion: string = optional("BROWSERSTACK_OS_VERSION", "14.0");

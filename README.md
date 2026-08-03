@@ -89,8 +89,8 @@ npx wdio run ./config/wdio.android.local.conf.ts --spec test/specs/android/swipe
 
 ## Running on BrowserStack App Automate
 
-Android only; iOS is a later phase. The same five spec files run unchanged — only the
-config differs.
+The same five spec files run unchanged — only the config differs. For iOS, see
+[Running iOS on BrowserStack](#running-ios-on-browserstack).
 
 ### 1. Credentials
 
@@ -100,7 +100,7 @@ Three variables are required. Put them in `.env` (git-ignored) or export them:
 |---|---|
 | `BROWSERSTACK_USERNAME` | [Account settings](https://www.browserstack.com/accounts/profile/details) |
 | `BROWSERSTACK_ACCESS_KEY` | Same page |
-| `BROWSERSTACK_APP_ID` | The `bs://` id returned by the upload below |
+| `BROWSERSTACK_ANDROID_APP_ID` | The `bs://` id (or custom_id) returned by the upload below |
 
 None of them have defaults. `config/wdio.android.bstack.conf.ts` throws at **config load
 time** if any is missing, so a typo costs nothing rather than a billed session.
@@ -108,7 +108,7 @@ time** if any is missing, so a typo costs nothing rather than a billed session.
 ### 2. Uploading the app
 
 The `.apk` must be uploaded to BrowserStack once; the upload returns an id you then put
-in `BROWSERSTACK_APP_ID`. Run this yourself — nothing in this repo uploads on your behalf.
+in `BROWSERSTACK_ANDROID_APP_ID`. Run this yourself — nothing in this repo uploads on your behalf.
 
 **Git Bash, macOS, Linux:**
 
@@ -131,10 +131,10 @@ The response is JSON:
 {"app_url":"bs://c8ddcb5f6a3e2b4d9e1a0f7c2b8d4e6a1f3c5b7d"}
 ```
 
-Put that whole `bs://…` string into `BROWSERSTACK_APP_ID`.
+Put that whole `bs://…` string into `BROWSERSTACK_ANDROID_APP_ID`.
 
 Optionally add `-F "custom_id=WdioDemoApp"` to the upload. BrowserStack then accepts
-`BROWSERSTACK_APP_ID=WdioDemoApp` and resolves it to the most recent upload under that
+`BROWSERSTACK_ANDROID_APP_ID=WdioDemoApp` and resolves it to the most recent upload under that
 id, so re-uploading a new build does not mean editing `.env` again.
 
 ### 3. Run
@@ -154,7 +154,7 @@ Both of those are service defaults rather than settings in this repo, deliberate
 
 ### Device selection
 
-The config runs **one** device, defaulting to Google Pixel 7 / Android 13.0. Override
+The config runs **one** device, defaulting to Google Pixel 8 / Android 14.0. Override
 with `BROWSERSTACK_DEVICE` and `BROWSERSTACK_OS_VERSION`.
 
 > **Check the device string against BrowserStack's live device list before your first
@@ -163,6 +163,85 @@ with `BROWSERSTACK_DEVICE` and `BROWSERSTACK_OS_VERSION`.
 
 Adding a second capability entry would double the bill for the same coverage — see
 [One session per spec file](#one-session-per-spec-file).
+
+## Running iOS on BrowserStack
+
+iOS is **cloud-only**, and that is a platform constraint rather than a choice. Driving a
+real iOS device or simulator locally requires Xcode and the XCUITest runner, which exist
+only on macOS — so on a Windows or Linux machine there is no local iOS path at all.
+That is why this framework is Android-first: Android gives a full local
+edit-run-debug loop, and iOS gets a smaller suite that runs on real devices in
+BrowserStack.
+
+### The app under test is different
+
+iOS does **not** run the WebdriverIO Demo App. That app ships an iOS *simulator* build
+only, and App Automate runs real devices, which cannot install a simulator binary. iOS
+therefore targets BrowserStack's own **BStackSampleApp**.
+
+Different app, different screens, so `test/screens/ios/` shares nothing with
+`test/screens/android/` beyond `BasePage` — the platform-neutral touchscreen mechanics.
+The two suites are deliberately not mirrors of each other.
+
+What the sample app offers is a "UI Elements" list with a text screen behind it — there
+is no login flow to exercise. The two specs cover what is actually there:
+
+| Spec | What it does |
+|---|---|
+| `test/specs/ios/text-input.spec.ts` | Types generated text and asserts the output label echoes it |
+| `test/specs/ios/navigation.spec.ts` | Opens the Text screen and backs out to the list |
+
+### 1. Download the .ipa
+
+From BrowserStack's sample apps:
+
+```bash
+curl -L -o apps/BStackSampleApp.ipa \
+  "https://www.browserstack.com/app-automate/sample-apps/ios/BStackSampleApp.ipa"
+```
+
+It is git-ignored (`*.ipa`), like the `.apk`.
+
+### 2. Upload it with a custom_id
+
+**Git Bash, macOS, Linux:**
+
+```bash
+curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+  -X POST "https://api-cloud.browserstack.com/app-automate/upload" \
+  -F "file=@apps/BStackSampleApp.ipa" \
+  -F "custom_id=BStackSampleApp"
+```
+
+**PowerShell** — `curl.exe`, not `curl`:
+
+```powershell
+curl.exe -u "${env:BROWSERSTACK_USERNAME}:${env:BROWSERSTACK_ACCESS_KEY}" -X POST "https://api-cloud.browserstack.com/app-automate/upload" -F "file=@apps/BStackSampleApp.ipa" -F "custom_id=BStackSampleApp"
+```
+
+The response carries both ids:
+
+```json
+{"app_url":"bs://<hash>","custom_id":"BStackSampleApp","shareable_id":"<user>/BStackSampleApp"}
+```
+
+Because of `custom_id`, set **`BROWSERSTACK_IOS_APP_ID=BStackSampleApp`** in `.env` and
+leave it there — re-uploading a new build under the same `custom_id` resolves to the
+latest one without editing `.env` again. The raw `bs://<hash>` works too if you prefer
+pinning an exact build.
+
+### 3. Run
+
+```bash
+npm run test:ios:bstack
+```
+
+Like `test:bstack`, this does **not** clear `allure-results/`, so an Android run and an
+iOS run compose into a single report.
+
+Device defaults to **iPhone 14 / iOS 18**, overridable with `BROWSERSTACK_IOS_DEVICE` and
+`BROWSERSTACK_IOS_OS_VERSION`. These are separate variables from the Android pair so both
+platforms can be configured in one `.env`.
 
 ## Continuous integration
 
@@ -196,7 +275,7 @@ must match exactly:
 |---|---|
 | `BROWSERSTACK_USERNAME` | From your BrowserStack account settings |
 | `BROWSERSTACK_ACCESS_KEY` | Same page |
-| `BROWSERSTACK_APP_ID` | The `bs://` id from the app upload |
+| `BROWSERSTACK_APP_ID` (secret name) → `BROWSERSTACK_ANDROID_APP_ID` (env var) | The `bs://` id or custom_id from the app upload |
 
 A secret that is absent or misnamed does not fail the expression — it interpolates to an
 empty string, and the run then fails at session creation looking like an authentication
@@ -285,12 +364,17 @@ A local run produces:
 
 ```properties
 Execution.Target=Local Android emulator (Appium)
+Platform=Android
 Device=sdk_gphone64_x86_64
-Android.Version=14
+OS.Version=14
 Android.API.Level=34
 App=android.wdio.native.app.apk
 Automation=UiAutomator2
 ```
+
+The keys are platform-neutral so an iOS run reads the same way — `Platform=iOS`,
+`OS.Version=18`, and no `Android.API.Level`, which is dropped when the driver does not
+report it.
 
 A BrowserStack run produces the same keys with `Execution.Target=BrowserStack App
 Automate`, the allocated device, and the `bs://` app id under `App` — so the two are
@@ -354,7 +438,7 @@ Three ways out, in rough order of preference:
    the same screen through the same form component and would share a session cleanly.
    Fewer files, same coverage, same isolation between files.
 2. **Upload the app once** and reference it by its `bs://` id rather than re-uploading
-   per run — which is how `BROWSERSTACK_APP_ID` is already wired. This removes the
+   per run — which is how `BROWSERSTACK_ANDROID_APP_ID` is already wired. This removes the
    upload, not the install.
 3. **Raise `maxInstances`** so sessions overlap. The free tier allows exactly one
    parallel session, so this only helps on a paid plan.
@@ -362,6 +446,32 @@ Three ways out, in rough order of preference:
 Option 1 is the only one that changes the session count, and it is worth doing only once
 the real per-session cost on BrowserStack has been measured rather than guessed. The
 first run will show it.
+
+### BROWSERSTACK_APP_ID is reserved by the SDK
+
+The BrowserStack SDK treats `BROWSERSTACK_APP_ID` as "the app for this run", and it
+**overrides** the `app` option the config passes to the service. The SDK's own log shows
+both halves of it:
+
+```
+CLI info  Config : {... "app":"BStackSampleApp" ...}
+CLI info  [appautomate:service]  Using app: WdioDemoApp
+```
+
+The first line is what `config/wdio.ios.bstack.conf.ts` asked for; the second is the
+Android id that happened to be sitting in `BROWSERSTACK_APP_ID`. The result was an
+Android build being started on an iPhone, rejected with `BROWSERSTACK_INVALID_APP_CAP`.
+
+Two things follow, and both are in place:
+
+- The per-platform ids are named `BROWSERSTACK_ANDROID_APP_ID` and
+  `BROWSERSTACK_IOS_APP_ID`. The reserved name is never overloaded to mean one platform.
+- Each BrowserStack config assigns `process.env.BROWSERSTACK_APP_ID` to its own app id at
+  load time, so the reserved variable and the service option always agree — whichever
+  one the SDK decides to honour.
+
+The GitHub secret keeps its original name; only the environment variable the workflow
+exposes to the config was renamed.
 
 ### BrowserStack's hub does not implement Release Actions
 

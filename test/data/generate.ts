@@ -9,9 +9,15 @@ export interface Credentials {
   password: string
 }
 
+/* Lowercased because iOS text fields autocapitalise, which would break a round-trip
+   assertion on a value the test never changed. */
+export function generateEmail(): string {
+  return faker.internet.email({ allowSpecialCharacters: false }).toLowerCase()
+}
+
 export function generateCredentials(): Credentials {
   return {
-    email: faker.internet.email({ allowSpecialCharacters: false }).toLowerCase(),
+    email: generateEmail(),
     password: faker.internet.password({ length: MIN_PASSWORD_LENGTH + 4 }),
   }
 }
