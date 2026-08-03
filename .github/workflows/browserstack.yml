@@ -1,0 +1,82 @@
+name: BrowserStack — Android
+
+# Every run is five billed sessions against a 100-minute trial, so this is deliberately
+# not on pull requests or on pushes to other branches.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# The free App Automate tier allows one parallel session. Two overlapping runs would
+# queue against each other on BrowserStack's side; this keeps them serialised here
+# instead. Queued rather than cancelled, so a push never discards a run already paying
+# for sessions.
+concurrency:
+  group: browserstack-android
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: WDIO Demo App on BrowserStack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Cheap gate: a type error would fail the wdio config at load anyway, but it would
+      # do so after the runner has already started talking to BrowserStack.
+      - name: Type-check
+        run: npm run typecheck
+
+      # A secret that is missing, misnamed, or referenced with broken syntax resolves to
+      # an empty string rather than failing, and the run then looks like an auth problem.
+      # This turns that into a named failure before any session is opened.
+      - name: Verify secrets resolved
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_APP_ID: ${{ secrets.BROWSERSTACK_APP_ID }}
+        run: |
+          missing=0
+          for name in BROWSERSTACK_USERNAME BROWSERSTACK_ACCESS_KEY BROWSERSTACK_APP_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name resolved to an empty string. Check the repository secret name and this workflow's env block."
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Run the suite on BrowserStack
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_APP_ID: ${{ secrets.BROWSERSTACK_APP_ID }}
+          BROWSERSTACK_BUILD_NAME: Android — GitHub Actions ${{ github.ref_name }}
+        run: npm run test:bstack
+
+      # always(), so a failing run still produces the results that explain the failure —
+      # including the on-failure screenshots.
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results/
+          retention-days: 30
+          # warn, not error: if the run dies before any result is written, the real
+          # failure is in the step above and should not be buried under a second one.
+          if-no-files-found: warn

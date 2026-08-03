@@ -1,32 +1,40 @@
-import { deepmerge } from 'deepmerge-ts'
+import { deepmerge } from "deepmerge-ts";
 
-import { allureResultsDir, sharedConfig } from './wdio.shared.conf'
-import { writeAllureEnvironment } from './allure-environment'
+import { allureResultsDir, sharedConfig } from "./wdio.shared.conf";
+import { writeAllureEnvironment } from "./allure-environment";
 
 function required(name: string): string {
-  const value = process.env[name]
-  if (value === undefined || value === '') {
+  const value = process.env[name];
+  if (value === undefined || value === "") {
     /* Thrown at config load, before any session opens, so a missing credential costs
        nothing. Discovering it from a BrowserStack auth failure costs a billed session. */
     throw new Error(
       `${name} is not set. Copy .env.example to .env and fill it in, or export ${name} in your shell.`,
-    )
+    );
   }
-  return value
+  return value;
 }
 
-const appId: string = required('BROWSERSTACK_APP_ID')
+/* `??` is not enough for anything that can arrive from CI. An unset GitHub secret or
+   variable interpolates to an empty string, not to undefined, so `?? fallback` would
+   hand BrowserStack a blank device name instead of the default. */
+function optional(name: string, fallback: string): string {
+  const value = process.env[name];
+  return value === undefined || value === "" ? fallback : value;
+}
 
-const device: string = process.env.BROWSERSTACK_DEVICE ?? 'Google Pixel 7'
-const osVersion: string = process.env.BROWSERSTACK_OS_VERSION ?? '13.0'
+const appId: string = required("BROWSERSTACK_APP_ID");
+
+const device: string = optional("BROWSERSTACK_DEVICE", "Google Pixel 8");
+const osVersion: string = optional("BROWSERSTACK_OS_VERSION", "14.0");
 
 export const config: WebdriverIO.Config = deepmerge(sharedConfig, {
-  specs: ['../test/specs/android/**/*.spec.ts'],
+  specs: ["../test/specs/android/**/*.spec.ts"],
 
-  user: required('BROWSERSTACK_USERNAME'),
-  key: required('BROWSERSTACK_ACCESS_KEY'),
+  user: required("BROWSERSTACK_USERNAME"),
+  key: required("BROWSERSTACK_ACCESS_KEY"),
 
-  hostname: 'hub.browserstack.com',
+  hostname: "hub.browserstack.com",
 
   /*
    * `app` only, and that restraint is load-bearing. @wdio/browserstack-service copies
@@ -42,7 +50,7 @@ export const config: WebdriverIO.Config = deepmerge(sharedConfig, {
    */
   services: [
     [
-      'browserstack',
+      "browserstack",
       {
         app: appId,
       },
@@ -53,27 +61,30 @@ export const config: WebdriverIO.Config = deepmerge(sharedConfig, {
      session, so a second entry here doubles the bill for the same coverage. */
   capabilities: [
     {
-      platformName: 'android',
-      'appium:automationName': 'UiAutomator2',
-      'appium:deviceName': device,
-      'appium:platformVersion': osVersion,
+      platformName: "android",
+      "appium:automationName": "UiAutomator2",
+      "appium:deviceName": device,
+      "appium:platformVersion": osVersion,
 
-      'bstack:options': {
-        projectName: 'WDIO Mobile Automation',
-        buildName: process.env.BROWSERSTACK_BUILD_NAME ?? 'Android — WebdriverIO Demo App',
+      "bstack:options": {
+        projectName: "WDIO Mobile Automation",
+        buildName: optional(
+          "BROWSERSTACK_BUILD_NAME",
+          "Android — WebdriverIO Demo App",
+        ),
 
         /* Literal placeholder parsed by BrowserStack, not a JS template string. It
            appends a run counter to buildName, which is what keeps separate runs from
            collapsing into one dashboard build. */
-        buildIdentifier: '#${BUILD_NUMBER}',
+        buildIdentifier: "#${BUILD_NUMBER}",
       },
     },
   ],
 
   async before(): Promise<void> {
     await writeAllureEnvironment(allureResultsDir, {
-      target: 'BrowserStack App Automate',
+      target: "BrowserStack App Automate",
       app: appId,
-    })
+    });
   },
-} satisfies Partial<WebdriverIO.Config>)
+} satisfies Partial<WebdriverIO.Config>);

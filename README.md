@@ -164,6 +164,70 @@ with `BROWSERSTACK_DEVICE` and `BROWSERSTACK_OS_VERSION`.
 Adding a second capability entry would double the bill for the same coverage — see
 [One session per spec file](#one-session-per-spec-file).
 
+## Continuous integration
+
+[`.github/workflows/browserstack.yml`](.github/workflows/browserstack.yml) runs the five
+specs against BrowserStack. There is **no emulator job** — GitHub's hosted runners have
+no hardware acceleration, so an emulator there is slow, flaky, and pointless when the
+same specs run on a real device.
+
+### Triggering it
+
+| Trigger | When |
+|---|---|
+| `workflow_dispatch` | Manually: **Actions** tab → *BrowserStack — Android* → **Run workflow** |
+| `push` to `main` | Automatically, on every push to the default branch |
+
+Deliberately **not** on pull requests and **not** on other branches. Each run is five
+billed sessions against a 100-minute trial, so a chatty trigger would exhaust it in
+about four runs.
+
+Two further guards on the same budget: the job has `timeout-minutes: 30`, so a hung
+session cannot bill indefinitely, and a `concurrency` group serialises runs rather than
+letting two overlap — the free tier allows one parallel session, so overlapping runs
+would queue against each other on BrowserStack's side anyway.
+
+### Secrets
+
+Three, at **Settings → Secrets and variables → Actions → Repository secrets**. The names
+must match exactly:
+
+| Secret | Value |
+|---|---|
+| `BROWSERSTACK_USERNAME` | From your BrowserStack account settings |
+| `BROWSERSTACK_ACCESS_KEY` | Same page |
+| `BROWSERSTACK_APP_ID` | The `bs://` id from the app upload |
+
+A secret that is absent or misnamed does not fail the expression — it interpolates to an
+empty string, and the run then fails at session creation looking like an authentication
+problem. The workflow has a **Verify secrets resolved** step that checks all three are
+non-empty and fails with the offending name before any session opens.
+
+The device is **not** configured from CI. The workflow leaves `BROWSERSTACK_DEVICE` and
+`BROWSERSTACK_OS_VERSION` unset, so `config/wdio.android.bstack.conf.ts` applies its
+defaults — currently Google Pixel 7 / 13.0. If your local `.env` names a different
+device, CI is not testing what you tested locally; change the defaults in the config so
+both agree.
+
+### Where the artifact lands
+
+Every run uploads `allure-results/` as an artifact named **`allure-results`**, with
+`if: always()` so a failed run still produces one — including the on-failure
+screenshots, which are usually the reason you are looking.
+
+Download it from the run's summary page, under **Artifacts**, then:
+
+```bash
+npm run report:clean          # clear any local results first
+unzip ~/Downloads/allure-results.zip -d allure-results
+npm run report:generate
+npm run report:open
+```
+
+Artifacts are kept for 30 days. Note that GitHub serves them as a `.zip` regardless of
+what was uploaded, so the download is `allure-results.zip` containing the directory's
+contents — unzip *into* `allure-results/`, as above, not next to it.
+
 ## Reports
 
 The suite writes [Allure](https://allurereport.org/) results on every run, in addition to
