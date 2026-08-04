@@ -1,19 +1,19 @@
-import type { ChainablePromiseElement } from 'webdriverio'
+import type { ChainablePromiseElement } from "webdriverio";
 
-import BasePage from '../base.page'
+import IosBasePage from "./ios-base.page";
 
-class UiElementsPage extends BasePage {
+class UiElementsPage extends IosBasePage {
   public get textButton(): ChainablePromiseElement {
-    return $('~Text Button')
+    return $("~Text Button");
   }
 
   public async openTextScreen(): Promise<void> {
-    await this.tap(this.textButton, 'the "Text Button" list item')
+    await this.tap(this.textButton, 'the "Text Button" list item');
   }
 
   public async waitUntilShown(): Promise<void> {
-    await this.waitUntilDisplayed(this.textButton, 'the UI Elements list')
+    await this.waitUntilDisplayed(this.textButton, "the UI Elements list");
   }
 }
 
-export default new UiElementsPage()
+export default new UiElementsPage();
